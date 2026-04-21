@@ -17,6 +17,10 @@ pub struct AmpUsageEvent {
     pub tokens: Option<AmpTokens>,
     #[serde(rename = "operationType")]
     pub _operation_type: Option<String>,
+    #[serde(rename = "fromMessageId")]
+    pub _from_message_id: Option<i64>,
+    #[serde(rename = "toMessageId")]
+    pub to_message_id: Option<i64>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -76,6 +80,8 @@ struct AmpUsageRecord {
     model: String,
     timestamp: i64,
     has_explicit_timestamp: bool,
+    message_id: Option<i64>,
+    ledger_to_message_id: Option<i64>,
     tokens: TokenBreakdown,
     cost: f64,
 }
@@ -146,6 +152,8 @@ fn parse_amp_ledger_records(
                 model,
                 timestamp,
                 has_explicit_timestamp: explicit_timestamp.is_some(),
+                message_id: None,
+                ledger_to_message_id: event.to_message_id.filter(|id| *id > 0),
                 tokens: TokenBreakdown {
                     input: tokens.input.unwrap_or(0).max(0),
                     output: tokens.output.unwrap_or(0).max(0),
@@ -190,6 +198,8 @@ fn parse_amp_message_records(
                 model,
                 timestamp,
                 has_explicit_timestamp: false,
+                message_id: Some(message_id).filter(|id| *id > 0),
+                ledger_to_message_id: None,
                 tokens: TokenBreakdown {
                     input: usage.input_tokens.unwrap_or(0).max(0),
                     output: usage.output_tokens.unwrap_or(0).max(0),
@@ -209,15 +219,23 @@ fn find_matching_ledger_record(
     search_start: usize,
     message_record: &AmpUsageRecord,
 ) -> Option<usize> {
-    (search_start..ledger_records.len())
-        .find(|&index| {
-            !consumed[index] && ledger_records[index].matches_message_usage(message_record)
-        })
-        .or_else(|| {
-            (0..search_start).find(|&index| {
-                !consumed[index] && ledger_records[index].matches_message_usage(message_record)
-            })
-        })
+    let find_match = |predicate: &dyn Fn(usize) -> bool| {
+        (search_start..ledger_records.len())
+            .find(|&index| predicate(index))
+            .or_else(|| (0..search_start).find(|&index| predicate(index)))
+    };
+
+    if let Some(message_id) = message_record.message_id {
+        if let Some(index) = find_match(&|index| {
+            !consumed[index] && ledger_records[index].ledger_to_message_id == Some(message_id)
+        }) {
+            return Some(index);
+        }
+    }
+
+    find_match(&|index| {
+        !consumed[index] && ledger_records[index].matches_message_usage(message_record)
+    })
 }
 
 fn merge_amp_records(
@@ -230,6 +248,7 @@ fn merge_amp_records(
         } else {
             AmpUsageRecord {
                 cost: message_record.cost,
+                message_id: message_record.message_id,
                 ..ledger_record
             }
         }
@@ -238,6 +257,8 @@ fn merge_amp_records(
             model: ledger_record.model,
             timestamp: message_record.timestamp,
             has_explicit_timestamp: false,
+            message_id: message_record.message_id,
+            ledger_to_message_id: ledger_record.ledger_to_message_id,
             tokens: ledger_record.tokens,
             cost: if ledger_record.cost > 0.0 {
                 ledger_record.cost
@@ -462,6 +483,69 @@ mod tests {
             messages[1].date,
             local_date(timestamp_ms(second_ledger_timestamp))
         );
+    }
+
+    #[test]
+    fn test_parse_amp_prefers_message_id_match_over_token_heuristic() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let path = temp_dir.path().join("T-message-id-match.json");
+        let thread_created = timestamp_ms("2026-04-04T12:00:00Z");
+        let first_ledger_timestamp = "2026-04-10T12:00:00Z";
+        let second_ledger_timestamp = "2026-04-05T12:00:00Z";
+
+        write_amp_thread(
+            &path,
+            &serde_json::json!({
+                "id": "thread-message-id-match",
+                "created": thread_created,
+                "usageLedger": {
+                    "events": [
+                        {
+                            "timestamp": first_ledger_timestamp,
+                            "model": "claude-sonnet-4-0",
+                            "credits": 0.20,
+                            "tokens": { "input": 20, "output": 5 },
+                            "toMessageId": 2
+                        },
+                        {
+                            "timestamp": second_ledger_timestamp,
+                            "model": "claude-sonnet-4-0",
+                            "credits": 0.20,
+                            "tokens": { "input": 20, "output": 5 },
+                            "toMessageId": 1
+                        }
+                    ]
+                },
+                "messages": [
+                    {
+                        "role": "assistant",
+                        "messageId": 1,
+                        "usage": {
+                            "model": "claude-sonnet-4-0",
+                            "inputTokens": 20,
+                            "outputTokens": 5,
+                            "credits": 0.20
+                        }
+                    },
+                    {
+                        "role": "assistant",
+                        "messageId": 2,
+                        "usage": {
+                            "model": "claude-sonnet-4-0",
+                            "inputTokens": 20,
+                            "outputTokens": 5,
+                            "credits": 0.20
+                        }
+                    }
+                ]
+            })
+            .to_string(),
+        );
+
+        let messages = parse_amp_file(&path);
+        assert_eq!(messages.len(), 2);
+        assert_eq!(messages[0].timestamp, timestamp_ms(second_ledger_timestamp));
+        assert_eq!(messages[1].timestamp, timestamp_ms(first_ledger_timestamp));
     }
 
     #[test]
