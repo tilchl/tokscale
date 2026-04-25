@@ -4374,10 +4374,7 @@ mod tests {
             if matches!(filter, ClientFilter::Synthetic) {
                 continue;
             }
-            assert!(
-                default.contains(filter),
-                "default_set() missing {filter:?}"
-            );
+            assert!(default.contains(filter), "default_set() missing {filter:?}");
         }
         // Size sanity: every variant minus Synthetic.
         assert_eq!(
