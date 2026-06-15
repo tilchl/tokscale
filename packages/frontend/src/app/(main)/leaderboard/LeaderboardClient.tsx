@@ -1084,6 +1084,7 @@ export default function LeaderboardClient({ initialData, currentUser, initialSor
   );
 
   const isFirstRankFetch = useRef(true);
+  const lastAutoRefreshRef = useRef(0);
   const isFirstUrlSync = useRef(true);
 
   useEffect(() => {
@@ -1219,6 +1220,31 @@ export default function LeaderboardClient({ initialData, currentUser, initialSor
     fetchData(period, requestedPage, effectiveSortBy, debouncedSearch, retryToken, abortController.signal, appliedFrom, appliedTo);
     return () => abortController.abort();
   }, [appliedFrom, appliedTo, debouncedSearch, effectiveSortBy, fetchData, isLoading, period, requestedPage, retryToken]);
+
+  useEffect(() => {
+    const refreshVisibleLeaderboard = () => {
+      const now = Date.now();
+
+      if (document.visibilityState !== "visible") {
+        return;
+      }
+
+      if (now - lastAutoRefreshRef.current < 30_000) {
+        return;
+      }
+
+      lastAutoRefreshRef.current = now;
+      setRetryToken((value) => value + 1);
+    };
+
+    window.addEventListener("focus", refreshVisibleLeaderboard);
+    document.addEventListener("visibilitychange", refreshVisibleLeaderboard);
+
+    return () => {
+      window.removeEventListener("focus", refreshVisibleLeaderboard);
+      document.removeEventListener("visibilitychange", refreshVisibleLeaderboard);
+    };
+  }, []);
 
   const sortedUsers = data.users || [];
   const showSubmissionCount = period === "all";

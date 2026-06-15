@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { revalidateTag } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { db, apiTokens, submissions, submittedDevices, dailyBreakdown } from "@/lib/db";
 import { and, eq, sql } from "drizzle-orm";
 import {
@@ -611,6 +611,11 @@ export async function POST(request: Request) {
       revalidateTag(`user:${usernameCacheKey}`, "max");
       revalidateTag("user-rank", "max");
       revalidateTag(`user-rank:${usernameCacheKey}`, "max");
+      revalidatePath("/leaderboard");
+      revalidatePath("/api/leaderboard");
+      revalidatePath("/profile");
+      revalidatePath(`/u/${tokenRecord.username}`);
+      revalidatePath(`/api/users/${tokenRecord.username}`);
     } catch (e) {
       console.error("Public cache invalidation failed:", e);
     }
