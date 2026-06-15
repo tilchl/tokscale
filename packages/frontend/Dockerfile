@@ -3,7 +3,7 @@ FROM oven/bun:1 AS deps
 WORKDIR /app
 
 COPY package.json bun.lock ./
-COPY packages/frontend/package.json packages/frontend/package.json
+COPY packages ./packages
 
 RUN bun install --frozen-lockfile
 
@@ -13,9 +13,8 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/packages/frontend/node_modules ./packages/frontend/node_modules
+COPY --from=deps /app/packages ./packages
 COPY package.json bun.lock ./
-COPY packages/frontend ./packages/frontend
 
 RUN bun run --cwd packages/frontend build
 
