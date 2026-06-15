@@ -1,0 +1,12 @@
+.git
+.next
+node_modules
+packages/*/node_modules
+packages/frontend/.next
+target
+dist
+coverage
+.env
+.env.*
+!.env.example
+*.log

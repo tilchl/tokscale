@@ -33,4 +33,5 @@ self-host/tokscale-key.pem
 self-host/
 .next/
 .vercel
+.env
 .env*.local

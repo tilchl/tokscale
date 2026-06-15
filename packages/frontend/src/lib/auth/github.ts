@@ -11,14 +11,36 @@ export interface GitHubUser {
   email: string | null;
 }
 
+export function getAllowedGitHubOrgs(): string[] {
+  const raw = process.env.GITHUB_ALLOWED_ORGS;
+
+  if (!raw) {
+    return [];
+  }
+
+  return raw
+    .split(",")
+    .map((org) => org.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+export function isGitHubOrgRestrictionEnabled(): boolean {
+  return getAllowedGitHubOrgs().length > 0;
+}
+
 /**
  * Get GitHub OAuth authorization URL.
  */
 export function getAuthorizationUrl(state: string): string {
+  const scopes = ["read:user", "user:email"];
+  if (isGitHubOrgRestrictionEnabled()) {
+    scopes.push("read:org");
+  }
+
   const params = new URLSearchParams({
     client_id: GITHUB_CLIENT_ID,
     redirect_uri: GITHUB_REDIRECT_URI,
-    scope: "read:user user:email",
+    scope: scopes.join(" "),
     state,
   });
 
@@ -98,4 +120,41 @@ export async function getGitHubUserEmail(
   } catch {
     return null;
   }
+}
+
+export async function getAllowedGitHubOrgMembership(
+  accessToken: string
+): Promise<string | null> {
+  const allowedOrgs = getAllowedGitHubOrgs();
+
+  if (allowedOrgs.length === 0) {
+    return null;
+  }
+
+  const response = await fetch("https://api.github.com/user/orgs?per_page=100", {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      Accept: "application/vnd.github.v3+json",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch GitHub orgs: ${response.status}`);
+  }
+
+  const orgs: Array<{ login?: unknown }> = await response.json();
+  const allowed = new Set(allowedOrgs);
+
+  for (const org of orgs) {
+    if (typeof org.login !== "string") {
+      continue;
+    }
+
+    const login = org.login.toLowerCase();
+    if (allowed.has(login)) {
+      return login;
+    }
+  }
+
+  return null;
 }

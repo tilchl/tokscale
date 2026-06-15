@@ -1,5 +1,6 @@
 import { Navigation } from "@/components/layout/Navigation";
 import { Footer } from "@/components/layout/Footer";
+import { requireOrgVerifiedPageSession } from "@/lib/auth/pageGuard";
 import JoinGroupClient from "./JoinGroupClient";
 
 export default async function JoinGroupPage({
@@ -8,6 +9,7 @@ export default async function JoinGroupPage({
   params: Promise<{ token: string }>;
 }) {
   const { token } = await params;
+  await requireOrgVerifiedPageSession(`/groups/join/${token}`);
 
   return (
     <div

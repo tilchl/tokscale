@@ -2,12 +2,14 @@ import { redirect } from "next/navigation";
 import { Navigation } from "@/components/layout/Navigation";
 import { Footer } from "@/components/layout/Footer";
 import { getSession } from "@/lib/auth/session";
+import { requireOrgVerifiedPageSession } from "@/lib/auth/pageGuard";
 import CreateGroupClient from "./CreateGroupClient";
 
 export default async function NewGroupPage() {
+  const verifiedSession = await requireOrgVerifiedPageSession("/groups/new");
   const session = await getSession();
 
-  if (!session) {
+  if (!verifiedSession && !session) {
     redirect("/api/auth/github?returnTo=/groups/new");
   }
 

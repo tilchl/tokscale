@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { requireOrgVerifiedPageSession } from '@/lib/auth/pageGuard';
 import LocalClient from './LocalClient';
 
 export const metadata: Metadata = {
@@ -6,6 +7,8 @@ export const metadata: Metadata = {
   description: 'View your local AI token usage data',
 };
 
-export default function LocalViewerPage() {
+export default async function LocalViewerPage() {
+  await requireOrgVerifiedPageSession('/local');
+
   return <LocalClient />;
 }

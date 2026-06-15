@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { Navigation } from "@/components/layout/Navigation";
 import { Footer } from "@/components/layout/Footer";
 import { getSession } from "@/lib/auth/session";
+import { requireOrgVerifiedPageSession } from "@/lib/auth/pageGuard";
 import { getGroupLeaderboardData } from "@/lib/groups/getGroupLeaderboard";
 import { getGroupMembership } from "@/lib/groups/permissions";
 import { getGroupBySlug, getGroupMemberCount } from "@/lib/groups/queries";
@@ -30,13 +31,14 @@ function PageShell({ children }: { children: React.ReactNode }) {
 
 export default async function GroupPage({ params }: GroupPageProps) {
   const { slug } = await params;
+  const verifiedSession = await requireOrgVerifiedPageSession(`/groups/${slug}`);
   const group = await getGroupBySlug(slug);
 
   if (!group) {
     notFound();
   }
 
-  const session = await getSession();
+  const session = verifiedSession ?? await getSession();
   const membership = session ? await getGroupMembership(group.id, session.id) : null;
 
   if (!group.isPublic && !membership) {

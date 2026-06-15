@@ -1,5 +1,6 @@
 import { Navigation } from "@/components/layout/Navigation";
 import { LandingPage } from "@/components/landing/LandingPage";
+import { requireOrgVerifiedPageSession } from "@/lib/auth/pageGuard";
 import { getStargazersCount } from "@/lib/github";
 import { getLeaderboardData, type LeaderboardData } from "@/lib/leaderboard/getLeaderboard";
 
@@ -27,6 +28,8 @@ function createEmptyLeaderboardData(sortBy: "tokens" | "cost"): LeaderboardData 
 }
 
 export default async function HomePage() {
+  await requireOrgVerifiedPageSession("/");
+
   const [stargazersCount, topUsersByCost, topUsersByTokens] = await Promise.all([
     getStargazersCount("junhoyeo/tokscale"),
     getLeaderboardData("all", 1, 5, "cost").catch(() => createEmptyLeaderboardData("cost")),

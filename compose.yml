@@ -1,0 +1,52 @@
+services:
+  tokscale:
+    build:
+      context: .
+      dockerfile: packages/frontend/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://tokscale:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/tokscale
+      DATABASE_SSL: "false"
+      NEXT_PUBLIC_URL: ${NEXT_PUBLIC_URL:-https://tokscale.tilch.io}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:?set GITHUB_CLIENT_ID}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:?set GITHUB_CLIENT_SECRET}
+      GITHUB_ALLOWED_ORGS: ${GITHUB_ALLOWED_ORGS:-}
+      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET}
+      CSRF_ALLOWED_ORIGINS: ${CSRF_ALLOWED_ORIGINS:-https://tokscale.tilch.io}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.tokscale.entryPoints=https"
+      - "traefik.http.routers.tokscale.rule=Host(`tokscale.tilch.io`)"
+      - "traefik.http.services.tokscale.loadbalancer.server.port=3000"
+      - "traefik.http.routers.tokscale.middlewares=websocket@file"
+    networks:
+      - default
+      - traefik
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: tokscale
+      POSTGRES_USER: tokscale
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tokscale -d tokscale"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - default
+
+volumes:
+  postgres_data:
+
+networks:
+  traefik:
+    external: true

@@ -3,6 +3,7 @@ import { db, sessions, users } from "@/lib/db";
 import { eq, and, gt } from "drizzle-orm";
 import { generateRandomString, hashToken } from "./utils";
 import { authenticatePersonalToken } from "./personalTokens";
+import { isGitHubOrgRestrictionEnabled } from "./github";
 
 const SESSION_COOKIE_NAME = "tt_session";
 const SESSION_DURATION_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
@@ -45,6 +46,10 @@ export async function getSession(): Promise<SessionUser | null> {
   }
 
   const { user } = result[0];
+
+  if (isGitHubOrgRestrictionEnabled() && !user.orgVerifiedAt) {
+    return null;
+  }
 
   return {
     id: user.id,

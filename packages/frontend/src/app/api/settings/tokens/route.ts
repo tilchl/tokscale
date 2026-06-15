@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
 import { getSessionFromRequest } from "@/lib/auth/requestSession";
 import { issuePersonalToken, listPersonalTokens } from "@/lib/auth/personalTokens";
+import { isGitHubOrgRestrictionEnabled } from "@/lib/auth/github";
+import { db, users } from "@/lib/db";
+import { eq } from "drizzle-orm";
 
 const DEFAULT_TOKEN_NAME = "CI token";
 const MAX_TOKEN_NAME_LENGTH = 100;
@@ -52,6 +55,21 @@ export async function POST(request: Request) {
     });
     if (!session) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+
+    if (isGitHubOrgRestrictionEnabled()) {
+      const [user] = await db
+        .select({ orgVerifiedAt: users.orgVerifiedAt })
+        .from(users)
+        .where(eq(users.id, session.id))
+        .limit(1);
+
+      if (!user?.orgVerifiedAt) {
+        return NextResponse.json(
+          { error: "GitHub organization membership is required. Please sign in again." },
+          { status: 403 }
+        );
+      }
     }
 
     const body = await request.json().catch(() => ({}));

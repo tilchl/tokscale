@@ -7,6 +7,7 @@ import { LeaderboardSkeleton } from "@/components/Skeleton";
 import { getLeaderboardData, getUserRank } from "@/lib/leaderboard/getLeaderboard";
 import type { LeaderboardData, Period, SortBy } from "@/lib/leaderboard/types";
 import { getSession } from "@/lib/auth/session";
+import { requireOrgVerifiedPageSession } from "@/lib/auth/pageGuard";
 import { SORT_BY_COOKIE_NAME, isValidSortBy } from "@/lib/leaderboard/constants";
 import { parseCustomDateRange } from "@/lib/leaderboard/dateRange";
 import { listPublicGroups, listUserGroups } from "@/lib/groups/queries";
@@ -51,7 +52,9 @@ interface PageProps {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
-export default function LeaderboardPage({ searchParams }: PageProps) {
+export default async function LeaderboardPage({ searchParams }: PageProps) {
+  await requireOrgVerifiedPageSession("/leaderboard");
+
   return (
     <div
       style={{

@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import {
   exchangeCodeForToken,
+  getAllowedGitHubOrgMembership,
+  getAllowedGitHubOrgs,
   getGitHubUser,
   getGitHubUserEmail,
 } from "@/lib/auth/github";
@@ -21,11 +23,11 @@ export async function GET(request: Request) {
   // Handle OAuth errors
   if (error) {
     console.error("GitHub OAuth error:", error);
-    return NextResponse.redirect(`${baseUrl}/?error=oauth_error`);
+    return NextResponse.redirect(`${baseUrl}/login?error=oauth_error`);
   }
 
   if (!code || !state) {
-    return NextResponse.redirect(`${baseUrl}/?error=missing_params`);
+    return NextResponse.redirect(`${baseUrl}/login?error=missing_params`);
   }
 
   // Validate CSRF state
@@ -33,18 +35,18 @@ export async function GET(request: Request) {
   const storedStateRaw = cookieStore.get("oauth_state")?.value;
 
   if (!storedStateRaw) {
-    return NextResponse.redirect(`${baseUrl}/?error=invalid_state`);
+    return NextResponse.redirect(`${baseUrl}/login?error=invalid_state`);
   }
 
   let storedState: { state: string; returnTo: string };
   try {
     storedState = JSON.parse(storedStateRaw);
   } catch {
-    return NextResponse.redirect(`${baseUrl}/?error=invalid_state`);
+    return NextResponse.redirect(`${baseUrl}/login?error=invalid_state`);
   }
 
   if (storedState.state !== state) {
-    return NextResponse.redirect(`${baseUrl}/?error=state_mismatch`);
+    return NextResponse.redirect(`${baseUrl}/login?error=state_mismatch`);
   }
 
   // Clear the state cookie
@@ -57,6 +59,14 @@ export async function GET(request: Request) {
     // Fetch user info from GitHub
     const githubUser = await getGitHubUser(accessToken);
     const email = githubUser.email || (await getGitHubUserEmail(accessToken));
+    const allowedOrgs = getAllowedGitHubOrgs();
+    const orgVerifiedLogin = allowedOrgs.length > 0
+      ? await getAllowedGitHubOrgMembership(accessToken)
+      : null;
+
+    if (allowedOrgs.length > 0 && !orgVerifiedLogin) {
+      return NextResponse.redirect(`${baseUrl}/login?error=org_not_allowed`);
+    }
 
     // Upsert user in database
     const existingUser = await db
@@ -77,6 +87,8 @@ export async function GET(request: Request) {
           displayName: githubUser.name,
           avatarUrl: githubUser.avatar_url,
           email: email,
+          orgVerifiedLogin,
+          orgVerifiedAt: orgVerifiedLogin ? new Date() : null,
           updatedAt: new Date(),
         })
         .where(eq(users.id, userId));
@@ -90,6 +102,8 @@ export async function GET(request: Request) {
           displayName: githubUser.name,
           avatarUrl: githubUser.avatar_url,
           email: email,
+          orgVerifiedLogin,
+          orgVerifiedAt: orgVerifiedLogin ? new Date() : null,
         })
         .returning({ id: users.id });
 
@@ -110,6 +124,6 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL(returnTo, baseUrl));
   } catch (err) {
     console.error("GitHub OAuth callback error:", err);
-    return NextResponse.redirect(`${baseUrl}/leaderboard?error=auth_failed`);
+    return NextResponse.redirect(`${baseUrl}/login?error=auth_failed`);
   }
 }

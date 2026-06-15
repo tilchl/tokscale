@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { requireOrgVerifiedPageSession } from '@/lib/auth/pageGuard';
 import SettingsClient from './SettingsClient';
 
 export const metadata: Metadata = {
@@ -6,6 +7,8 @@ export const metadata: Metadata = {
   description: 'Manage your account settings and API tokens',
 };
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  await requireOrgVerifiedPageSession('/settings');
+
   return <SettingsClient />;
 }

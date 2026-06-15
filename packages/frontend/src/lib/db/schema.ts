@@ -32,6 +32,8 @@ export const users = pgTable(
     displayName: varchar("display_name", { length: 255 }),
     avatarUrl: text("avatar_url"),
     email: varchar("email", { length: 255 }),
+    orgVerifiedLogin: varchar("org_verified_login", { length: 39 }),
+    orgVerifiedAt: timestamp("org_verified_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

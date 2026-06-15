@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound, permanentRedirect } from 'next/navigation';
+import { requireOrgVerifiedPageSession } from '@/lib/auth/pageGuard';
 import { normalizeUsernameCacheKey } from '@/lib/db/usernameLookup';
 import ProfilePageClient from './ProfilePageClient';
 
@@ -80,6 +81,8 @@ export async function generateMetadata({ params }: { params: Promise<{ username:
 
 export default async function ProfilePage({ params }: { params: Promise<{ username: string }> }) {
   const { username } = await params;
+  await requireOrgVerifiedPageSession(`/u/${username}`);
+
   const [data, devices] = await Promise.all([
     getProfileData(username),
     getProfileDevices(username),
