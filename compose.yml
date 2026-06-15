@@ -9,7 +9,7 @@ services:
         condition: service_healthy
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://tokscale:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/tokscale
+      DATABASE_URL: postgresql://tokscale:${POSTGRES_PASSWORD_URLENCODED:?set POSTGRES_PASSWORD_URLENCODED}@postgres:5432/tokscale
       DATABASE_SSL: "false"
       NEXT_PUBLIC_URL: ${NEXT_PUBLIC_URL:-https://tokscale.tilch.io}
       GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:?set GITHUB_CLIENT_ID}
@@ -24,7 +24,7 @@ services:
       - "traefik.http.services.tokscale.loadbalancer.server.port=3000"
       - "traefik.http.routers.tokscale.middlewares=websocket@file"
     ports:
-      - "3000:3000"
+      - "3005:3000"
 
   postgres:
     image: postgres:16-alpine
