@@ -19,9 +19,10 @@ services:
       CSRF_ALLOWED_ORIGINS: ${CSRF_ALLOWED_ORIGINS:-https://tokscale.tilch.io}
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=tokscale_default"
       - "traefik.http.routers.tokscale.entryPoints=https"
       - "traefik.http.routers.tokscale.rule=Host(`tokscale.tilch.io`)"
-      - "traefik.http.services.tokscale.loadbalancer.server.port=3005"
+      - "traefik.http.services.tokscale.loadbalancer.server.port=3000"
       - "traefik.http.routers.tokscale.middlewares=websocket@file"
     ports:
       - "3005:3000"
