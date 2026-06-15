@@ -23,9 +23,8 @@ services:
       - "traefik.http.routers.tokscale.rule=Host(`tokscale.tilch.io`)"
       - "traefik.http.services.tokscale.loadbalancer.server.port=3000"
       - "traefik.http.routers.tokscale.middlewares=websocket@file"
-    networks:
-      - default
-      - traefik
+    ports:
+      - "3000:3000"
 
   postgres:
     image: postgres:16-alpine
@@ -46,7 +45,3 @@ services:
 
 volumes:
   postgres_data:
-
-networks:
-  traefik:
-    external: true
