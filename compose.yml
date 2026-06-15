@@ -1,5 +1,8 @@
+name: tokscale
+
 services:
   tokscale:
+    container_name: tokscale_server
     build:
       context: .
       dockerfile: packages/frontend/Dockerfile
@@ -7,15 +10,12 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    env_file:
+      - .env
     environment:
       NODE_ENV: production
       DATABASE_URL: postgresql://tokscale:${POSTGRES_PASSWORD_URLENCODED:?set POSTGRES_PASSWORD_URLENCODED}@postgres:5432/tokscale
       DATABASE_SSL: "false"
-      NEXT_PUBLIC_URL: ${NEXT_PUBLIC_URL:-https://tokscale.tilch.io}
-      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:?set GITHUB_CLIENT_ID}
-      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:?set GITHUB_CLIENT_SECRET}
-      GITHUB_ALLOWED_ORGS: ${GITHUB_ALLOWED_ORGS:-}
-      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET}
       CSRF_ALLOWED_ORIGINS: ${CSRF_ALLOWED_ORIGINS:-https://tokscale.tilch.io}
     labels:
       - "traefik.enable=true"
@@ -25,11 +25,9 @@ services:
       - "traefik.http.routers.tokscale.middlewares=websocket@file"
     ports:
       - "3005:3000"
-    networks:
-      - default
-      - bridge
 
   postgres:
+    container_name: tokscale_postgres
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
@@ -43,12 +41,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - default
 
 volumes:
   postgres_data:
-
-networks:
-  bridge:
-    external: true
