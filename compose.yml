@@ -25,6 +25,9 @@ services:
       - "traefik.http.routers.tokscale.middlewares=websocket@file"
     ports:
       - "3005:3000"
+    networks:
+      - default
+      - bridge
 
   postgres:
     image: postgres:16-alpine
@@ -45,3 +48,7 @@ services:
 
 volumes:
   postgres_data:
+
+networks:
+  bridge:
+    external: true
